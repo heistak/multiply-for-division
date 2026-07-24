@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1e293b">
+<title>わり算のための かけ算れんしゅう</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ホーム画面 -->
+  <section id="screen-home" class="screen active">
+    <header class="home-header">
+      <h1>わり算のための<br>かけ算れんしゅう</h1>
+      <div class="coverage-block">
+        <div class="coverage-label">とくいど</div>
+        <div class="coverage-score"><span id="coverage-number">0</span><span class="coverage-max">/1000</span></div>
+        <div class="coverage-bar"><div id="coverage-fill" class="coverage-fill"></div></div>
+        <div class="tier-info" id="tier-info">レベル 1 ： ÷2〜÷5</div>
+      </div>
+      <div class="today-block">
+        <div class="today-label">きょうのれんしゅう</div>
+        <div class="today-dots">
+          <span class="dot" id="dot-1">1</span>
+          <span class="dot" id="dot-2">2</span>
+        </div>
+        <div class="streak" id="streak-text"></div>
+      </div>
+    </header>
+    <div class="home-buttons">
+      <button id="btn-start" class="btn-primary">はじめる</button>
+      <button id="btn-settings" class="btn-secondary">せってい</button>
+    </div>
+  </section>
+
+  <!-- れんしゅう画面 -->
+  <section id="screen-practice" class="screen">
+    <div class="practice-topbar">
+      <button id="btn-quit" class="btn-quit">やめる</button>
+    </div>
+    <div class="practice-progress">
+      <div id="practice-progress-fill" class="practice-progress-fill"></div>
+    </div>
+
+    <div class="card" id="card">
+      <div class="card-prompt">
+        <span id="prompt-r" class="highlight-r"></span>
+        <span> をこえないけど、</span>
+        <span id="prompt-d" class="highlight-d"></span>
+        <span> とのいちばん大きい かけ算は？</span>
+      </div>
+      <div class="card-equation">
+        <span id="eq-d" class="eq-part"></span>
+        <span class="eq-sym">×</span>
+        <span id="eq-q" class="eq-part eq-input">?</span>
+        <span class="eq-sym">=</span>
+        <span id="eq-p" class="eq-part eq-input">?</span>
+      </div>
+
+      <!-- 引き算ステップ（オプション） -->
+      <div class="card-subtract" id="card-subtract" style="display:none;">
+        <div class="sub-label">つづけて：ひき算</div>
+        <div class="card-equation">
+          <span id="sub-r" class="eq-part"></span>
+          <span class="eq-sym">−</span>
+          <span id="sub-p" class="eq-part"></span>
+          <span class="eq-sym">=</span>
+          <span id="sub-ans" class="eq-part eq-input">?</span>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedback"></div>
+    </div>
+
+    <div class="keypad" id="keypad">
+      <button class="key" data-key="1">1</button>
+      <button class="key" data-key="2">2</button>
+      <button class="key" data-key="3">3</button>
+      <button class="key" data-key="4">4</button>
+      <button class="key" data-key="5">5</button>
+      <button class="key" data-key="6">6</button>
+      <button class="key" data-key="7">7</button>
+      <button class="key" data-key="8">8</button>
+      <button class="key" data-key="9">9</button>
+      <button class="key key-wide" data-key="0">0</button>
+      <button class="key key-del" data-key="del">←</button>
+    </div>
+  </section>
+
+  <!-- 結果画面 -->
+  <section id="screen-result" class="screen">
+    <div class="result-inner">
+      <h2 id="result-title">おつかれさま！</h2>
+      <div class="result-coverage">
+        <div class="coverage-label">とくいど</div>
+        <div class="coverage-score">
+          <span id="result-coverage">0</span><span class="coverage-max">/1000</span>
+        </div>
+        <div class="coverage-delta" id="result-delta"></div>
+        <div class="coverage-bar"><div id="result-fill" class="coverage-fill"></div></div>
+      </div>
+      <div class="result-note" id="result-note"></div>
+      <div class="today-block">
+        <div class="today-label">きょうのれんしゅう</div>
+        <div class="today-dots">
+          <span class="dot" id="result-dot-1">1</span>
+          <span class="dot" id="result-dot-2">2</span>
+        </div>
+      </div>
+      <button id="btn-home" class="btn-primary">ホームへ</button>
+    </div>
+  </section>
+
+  <!-- せってい画面 -->
+  <section id="screen-settings" class="screen">
+    <div class="settings-inner">
+      <h2>せってい</h2>
+
+      <div class="setting-row">
+        <label class="setting-label">
+          <input type="checkbox" id="opt-subtract">
+          <span>ひき算も れんしゅうする</span>
+        </label>
+        <div class="setting-desc">かけ算のあと「のこりはいくつ？」も出す</div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">レベル</div>
+        <div class="level-status" id="level-status"></div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">データ</div>
+        <div class="setting-buttons">
+          <button id="btn-export" class="btn-secondary">バックアップ</button>
+          <button id="btn-import" class="btn-secondary">よみこみ</button>
+          <input type="file" id="import-file" accept="application/json" style="display:none;">
+        </div>
+        <div class="setting-desc">ブラウザのデータを消しても だいじょうぶなように、ときどき バックアップしてね</div>
+      </div>
+
+      <div class="setting-row danger">
+        <div class="setting-label">リセット</div>
+        <button id="btn-reset" class="btn-danger">ぜんぶ さいしょから</button>
+        <div class="setting-desc">2回タップで じっこう</div>
+      </div>
+
+      <button id="btn-back" class="btn-secondary btn-full">もどる</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

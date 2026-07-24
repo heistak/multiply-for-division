@@ -1,0 +1,15 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / tooling
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code local overrides
+.claude/settings.local.json
+.claude/*.local.json

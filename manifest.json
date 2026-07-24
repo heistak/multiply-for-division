@@ -1,0 +1,13 @@
+{
+  "name": "わり算のための かけ算れんしゅう",
+  "short_name": "かけ算",
+  "description": "Division sub-skill spaced-repetition practice",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#1e293b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
