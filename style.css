@@ -93,18 +93,9 @@ button { font-family: inherit; cursor: pointer; border: none; }
 }
 
 /* ===== れんしゅう ===== */
-.practice-topbar {
-  display: flex; justify-content: flex-end; align-items: center;
-  margin-bottom: 12px;
-}
-.btn-quit {
-  padding: 8px 16px; font-size: 14px;
-  background: transparent; color: var(--text-dim);
-  border: 1px solid var(--text-dim); border-radius: 8px;
-}
 .practice-progress {
   height: 4px; background: var(--bg-card); border-radius: 2px; overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 .practice-progress-fill {
   height: 100%; background: var(--accent); width: 100%; transition: width 0.3s;

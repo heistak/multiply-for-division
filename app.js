@@ -534,10 +534,6 @@ function advance() {
 const PRAISE = ['せいかい！', 'いいね！', 'ばっちり！', 'すごい！', 'その調子！', 'よくできた！'];
 function pickPraise() { return PRAISE[Math.floor(Math.random() * PRAISE.length)]; }
 
-document.getElementById('btn-quit').addEventListener('click', () => {
-  if (confirm('やめますか？')) endSession();
-});
-
 function endSession() {
   sessionToken += 1;                        // invalidate any pending fade/hold timeouts
   clearInterval(timerHandle);
