@@ -150,14 +150,23 @@ class Scheduler {
     shuffle(dueCarryover);
     shuffle(newCards);
     shuffle(highBucket);
-    // Interleave: due first, sprinkle new cards throughout, high-bucket occasionally
+
+    // Cards still being learned, due ones first. These drive the session length.
+    const primary = dueCarryover.concat(newCards);
+    // Mastered cards return as occasional spot-checks — one every REVIEW_EVERY
+    // primary cards, capped so they never crowd out actual practice.
+    const REVIEW_EVERY = 6;
+    const reviews = highBucket.slice(0, Math.ceil(primary.length / REVIEW_EVERY));
+
     this.pool = [];
-    let d = 0, n = 0, h = 0;
-    while (d < dueCarryover.length || n < newCards.length || h < highBucket.length) {
-      if (d < dueCarryover.length) this.pool.push(dueCarryover[d++]);
-      if (n < newCards.length && (this.pool.length % 3 === 0 || d >= dueCarryover.length)) this.pool.push(newCards[n++]);
-      if (h < highBucket.length && this.pool.length % 6 === 0) this.pool.push(highBucket[h++]);
+    let r = 0;
+    for (let i = 0; i < primary.length; i++) {
+      this.pool.push(primary[i]);
+      if ((i + 1) % REVIEW_EVERY === 0 && r < reviews.length) this.pool.push(reviews[r++]);
     }
+    // Whole tier mastered → nothing "primary" left, so practise the mastered
+    // cards rather than handing back an empty pool.
+    if (this.pool.length === 0) this.pool = highBucket;
   }
 
   next() {
@@ -185,9 +194,14 @@ class Scheduler {
       const chosen = this.queue.shift();
       return CARD_BY_ID[chosen.cardId];
     }
-    // Nothing left — refill from deck (edge case for tiny decks / long sessions)
+    // Nothing left — refill from deck (edge case for tiny decks / long sessions).
+    // Never recurse here: an empty pool would loop forever.
+    this.sessionSeen.clear();
     this.initPool();
-    return this.next();
+    if (this.pool.length === 0) return currentCard || ALL_CARDS[0];
+    const c = this.pool.shift();
+    this.sessionSeen.add(c.id);
+    return c;
   }
 
   // Reschedule after answering
@@ -342,6 +356,9 @@ let stage = 'q';   // 'q' = multiplier, 'sub' = subtraction step
 let inputBuf = '';
 let questionShownAt = 0;
 let coverageBefore = 0;
+// True from the moment an answer is submitted until the next prompt is ready,
+// so taps during the feedback pause can't register as another answer.
+let answerLocked = false;
 // Each session has a token; queued setTimeouts check it before running so
 // stale ones from a previous session cannot mutate the current UI.
 let sessionToken = 0;
@@ -385,31 +402,48 @@ function nextQuestion() {
   document.getElementById('feedback').textContent = '';
   document.getElementById('feedback').className = 'feedback';
   document.getElementById('card').classList.remove('correct', 'wrong');
+  disableInput(false);                  // new prompt is ready — accept taps again
+}
+
+// How many digits the current answer can possibly have.
+//   q is always 1..9 → exactly one digit.
+//   the subtraction remainder is 0..d-1 → two digits only for divisors 11 and 12.
+function answerDigits() {
+  if (stage === 'q') return 1;
+  return String(currentCard.d - 1).length;
+}
+
+let pendingSubmit = null;
+function queueSubmit(delay) {
+  clearTimeout(pendingSubmit);
+  pendingSubmit = setTimeout(() => submitAnswer(), delay);
 }
 
 // Keypad handling
 document.getElementById('keypad').addEventListener('click', (e) => {
+  if (answerLocked) return;             // an answer is already being processed
   const btn = e.target.closest('.key'); if (!btn) return;
   const key = btn.dataset.key;
+  const maxDigits = answerDigits();
   if (key === 'del') {
+    clearTimeout(pendingSubmit);
     inputBuf = inputBuf.slice(0, -1);
-  } else {
-    if (inputBuf.length >= 2) return;
-    inputBuf += key;
+    updateInputDisplay();
+    return;
   }
+  // Ignore extra taps once the answer is as long as it can be. Without this, a
+  // fast double-tap concatenates into a two-digit number and scores as wrong.
+  if (inputBuf.length >= maxDigits) return;
+  inputBuf += key;
   updateInputDisplay();
 
-  // Auto-submit when we have a complete answer
-  if (stage === 'q') {
-    // q is a single digit 0..9. Submit as soon as user types one digit,
-    // BUT wait a beat so multi-digit inputs (unusual) can happen — actually q ∈ 0..9, so 1 digit.
-    if (inputBuf.length >= 1) {
-      // Small delay lets the display update before feedback
-      setTimeout(() => submitAnswer(), 60);
-    }
-  } else if (stage === 'sub') {
-    // Subtraction answer ranges 0..d-1 typically (single digit for this deck)
-    if (inputBuf.length >= 1) setTimeout(() => submitAnswer(), 60);
+  if (inputBuf.length >= maxDigits) {
+    queueSubmit(60);                    // complete — brief pause so the digit renders
+  } else {
+    // Only reachable for divisors 11/12, where the answer may be one OR two
+    // digits. A leading 1 could still become 10/11, so allow a beat for the
+    // second digit; anything else can't be extended, so submit right away.
+    queueSubmit(inputBuf === '1' ? 900 : 60);
   }
 });
 
@@ -434,6 +468,11 @@ function updateInputDisplay() {
 }
 
 function submitAnswer() {
+  // Guard against a second submission for the same question: two taps landing
+  // inside the 60ms auto-submit delay, or a tap during the post-answer pause.
+  if (answerLocked || inputBuf === '') return;
+  answerLocked = true;
+  clearTimeout(pendingSubmit);
   const dur = performance.now() - questionShownAt;
   if (stage === 'q') {
     const guess = parseInt(inputBuf, 10);
@@ -461,6 +500,7 @@ const WRONG_HOLD_MS = 5000;   // full duration to sit with the correct answer
 function handleResult(correct, dur, expected, thenCb, forSub = false) {
   const card = document.getElementById('card');
   const fb = document.getElementById('feedback');
+  disableInput(true);                   // stays locked until the next prompt is ready
   if (correct) {
     card.classList.add('correct');
     fb.textContent = pickPraise();
@@ -491,13 +531,13 @@ function handleResult(correct, dur, expected, thenCb, forSub = false) {
     } else {
       document.getElementById('sub-ans').textContent = expected;
     }
-    // Ignore any taps during the memorize-hold window
-    disableInput(true);
-    setTimeout(guarded(currentToken(), () => { disableInput(false); thenCb(); }), WRONG_HOLD_MS);
+    // Hold on the correct answer, ignoring taps, so it has time to sink in
+    setTimeout(guarded(currentToken(), thenCb), WRONG_HOLD_MS);
   }
 }
 
 function disableInput(off) {
+  answerLocked = off;
   document.getElementById('keypad').style.pointerEvents = off ? 'none' : '';
   document.getElementById('keypad').style.opacity = off ? '0.4' : '';
 }
@@ -514,6 +554,7 @@ function startSubtractStage() {
   document.getElementById('feedback').textContent = '';
   document.getElementById('feedback').className = 'feedback';
   document.getElementById('card').classList.remove('correct', 'wrong');
+  disableInput(false);                  // subtraction prompt ready — accept taps
 }
 
 function advance() {
