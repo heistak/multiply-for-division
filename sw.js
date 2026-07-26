@@ -15,8 +15,19 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // `cache: 'reload'` bypasses the browser's HTTP cache. Without it a stale
+  // style.css or app.js can survive a deploy: index.html is versioned by the
+  // server but the asset URLs never change, so the browser happily reuses its
+  // cached copies and the app updates only partially.
+  const fresh = new Request(e.request.url, {
+    cache: 'reload',
+    credentials: 'same-origin',
+    headers: e.request.headers,
+    mode: e.request.mode === 'navigate' ? 'same-origin' : e.request.mode,
+    redirect: 'follow',
+  });
   e.respondWith(
-    fetch(e.request).then(res => {
+    fetch(fresh).then(res => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
       return res;

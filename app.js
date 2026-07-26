@@ -371,6 +371,13 @@ function startSession() {
   scheduler = new Scheduler();
   sessionStart = Date.now();
   coverageBefore = coverageScore();
+  // Snap the bar back to empty without animating backwards from the last
+  // session's full bar.
+  const fill = document.getElementById('practice-progress-fill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  void fill.offsetWidth;                // force reflow so the reset sticks
+  fill.style.transition = '';
   show('practice');
   nextQuestion();
   tick();
@@ -381,7 +388,7 @@ function tick() {
   const remain = SESSION_MS - (Date.now() - sessionStart);
   if (remain <= 0) return endSession();
   const fill = document.getElementById('practice-progress-fill');
-  fill.style.width = `${(remain / SESSION_MS) * 100}%`;
+  fill.style.width = `${((SESSION_MS - remain) / SESSION_MS) * 100}%`;
 }
 
 function nextQuestion() {
