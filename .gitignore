@@ -13,3 +13,7 @@ desktop.ini
 # Claude Code local overrides
 .claude/settings.local.json
 .claude/*.local.json
+
+# Exported progress backups — personal data, never commit these
+wari-backup-*.json
+*-backup-*.json

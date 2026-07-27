@@ -228,9 +228,15 @@ function shuffle(arr) {
 }
 
 // ---------- Answer scoring ----------
+// What counts as an automatic answer. Deliberately set above the typical
+// response time for this material: fastStreak only advances on a fast answer,
+// so a threshold below the median turns the streak into a downward random walk
+// and no card can reach full mastery however much it is practised.
+const FAST_MS = 6000;
+
 function scoreAnswer(cardId, correct, durMs) {
   const p = progressFor(cardId);
-  const fast = correct && durMs < 3500;
+  const fast = correct && durMs < FAST_MS;
   if (!correct) {
     p.bucket = 0;
     p.fastStreak = 0;
@@ -240,10 +246,10 @@ function scoreAnswer(cardId, correct, durMs) {
       p.fastStreak = Math.min(10, p.fastStreak + 1);
     } else {
       p.bucket = Math.min(6, p.bucket + 1);
-      // Ease the streak down rather than zeroing it. Zeroing meant a correct
-      // -but-slow answer could drop a mastered card from 1.00 to 0.70, so the
-      // score fell right after he got one right — the worst possible signal.
-      p.fastStreak = Math.max(0, p.fastStreak - 1);
+      // fastStreak is deliberately left alone: a correct answer must never move
+      // the score backwards. Speed still pays — it earns +2 bucket instead of
+      // +1 and is the only thing that advances the streak — a slow correct
+      // answer simply doesn't add to it.
     }
     p.everCorrect = true;
   }
