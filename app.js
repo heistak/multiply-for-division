@@ -8,10 +8,13 @@
 // A card asks: "given divisor d and dividend segment r,
 //               what is the largest q such that d*q <= r ?"
 // Progressive tiers: unlocked when mastery of current tier is strong.
+// Divisors stop at 9: this is the 4年生 ÷1桁 筆算 sub-skill. ÷10 is a no-op
+// (just read the tens digit) and ÷11–12 are an arbitrary slice of the 2-digit
+// divisors — those need 仮商 (estimate, test, adjust), a different skill that
+// drilling 九九 recall doesn't build. Mastering ÷2〜÷9 is therefore 1000.
 const TIERS = [
-  { level: 1, divisors: [2, 3, 4, 5],           label: '÷2〜÷5' },
+  { level: 1, divisors: [2, 3, 4, 5],             label: '÷2〜÷5' },
   { level: 2, divisors: [2, 3, 4, 5, 6, 7, 8, 9], label: '÷2〜÷9' },
-  { level: 3, divisors: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], label: '÷2〜÷12' },
 ];
 // For each divisor d, r ranges over [d, 10d-1].
 // Reason: in real hand-division the "current dividend segment" is
@@ -36,7 +39,7 @@ const CARD_BY_ID = Object.fromEntries(ALL_CARDS.map(c => [c.id, c]));
 const STORAGE_KEY = 'wari-v1';
 const DEFAULT_STATE = {
   version: 1,
-  tier: 1,                        // 1..3
+  tier: 1,                        // 1..2
   progress: {},                   // id -> { bucket:0-6, fastStreak:0-N, lastSeenTs:0, everCorrect:false }
   sessions: [],                   // { dateISO:'YYYY-MM-DD', slot:1|2, endedAt:ms, coverageAfter:number }
   recentAnswers: [],              // ring buffer of last 40 { correct:bool, dur:ms, cardId:str }
@@ -51,9 +54,13 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_STATE);
     const parsed = JSON.parse(raw);
-    return { ...structuredClone(DEFAULT_STATE), ...parsed,
+    const loaded = { ...structuredClone(DEFAULT_STATE), ...parsed,
              settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
              streak: { ...DEFAULT_STATE.streak, ...(parsed.streak || {}) } };
+    // A save from when the deck went up to ÷12 would name a tier that no
+    // longer exists; land it on the last real one instead of an invalid state.
+    loaded.tier = Math.min(Math.max(1, loaded.tier | 0 || 1), TIERS.length);
+    return loaded;
   } catch (e) {
     console.warn('load failed', e);
     return structuredClone(DEFAULT_STATE);
@@ -82,8 +89,9 @@ function cardMastery(id) {
   return Math.min(1, bucketPart * 0.7 + streakPart * 0.3);
 }
 
-// Coverage 0..1000 over the FULL deck (all divisors 2..12).
+// Coverage 0..1000 over the FULL deck (all divisors 2..9, 396 cards).
 // The score's max never changes; unlocking a tier just adds room to grow.
+// Finishing tier 1 therefore reads ~318, and finishing tier 2 reads 1000.
 function currentDeck() {
   const divisors = TIERS[state.tier - 1].divisors;
   return ALL_CARDS.filter(c => divisors.includes(c.d));
@@ -232,7 +240,10 @@ function scoreAnswer(cardId, correct, durMs) {
       p.fastStreak = Math.min(10, p.fastStreak + 1);
     } else {
       p.bucket = Math.min(6, p.bucket + 1);
-      p.fastStreak = 0;
+      // Ease the streak down rather than zeroing it. Zeroing meant a correct
+      // -but-slow answer could drop a mastered card from 1.00 to 0.70, so the
+      // score fell right after he got one right — the worst possible signal.
+      p.fastStreak = Math.max(0, p.fastStreak - 1);
     }
     p.everCorrect = true;
   }
@@ -412,9 +423,9 @@ function nextQuestion() {
   disableInput(false);                  // new prompt is ready — accept taps again
 }
 
-// How many digits the current answer can possibly have.
-//   q is always 1..9 → exactly one digit.
-//   the subtraction remainder is 0..d-1 → two digits only for divisors 11 and 12.
+// How many digits the current answer can possibly have. With divisors capped
+// at 9 this is always 1 (q is 1..9, the remainder is 0..d-1 ≤ 8); it is derived
+// from the card rather than hardcoded so a wider deck stays correct.
 function answerDigits() {
   if (stage === 'q') return 1;
   return String(currentCard.d - 1).length;
@@ -447,9 +458,9 @@ document.getElementById('keypad').addEventListener('click', (e) => {
   if (inputBuf.length >= maxDigits) {
     queueSubmit(60);                    // complete — brief pause so the digit renders
   } else {
-    // Only reachable for divisors 11/12, where the answer may be one OR two
-    // digits. A leading 1 could still become 10/11, so allow a beat for the
-    // second digit; anything else can't be extended, so submit right away.
+    // Unreachable with the current deck (every answer is one digit). Kept for a
+    // two-digit answer, where a leading 1 might still become 10/11: allow a beat
+    // for a second digit, but submit at once for a digit that can't be extended.
     queueSubmit(inputBuf === '1' ? 900 : 60);
   }
 });
@@ -626,7 +637,9 @@ function renderResult(coverageAfter, tierUnlocked) {
     note = `🎉 レベル ${state.tier} かいほう！ ${TIERS[state.tier - 1].label} に ちょうせん！`;
   } else if (coverageAfter >= 1000) {
     note = 'マスター！ すごい！';
-  } else if (coverageAfter >= 850 && state.tier < TIERS.length) {
+  } else if (state.tier < TIERS.length && currentTierMastery() >= 0.7) {
+    // Gauge this on the current tier, not the overall score: unlocking uses
+    // tier mastery, and the overall score can't even reach 850 during tier 1.
     note = 'もうすこしで レベルアップ！';
   } else {
     note = 'まいにち つづけると どんどん おぼえるよ';
