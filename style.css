@@ -42,21 +42,37 @@ button { font-family: inherit; cursor: pointer; border: none; }
 
 .coverage-block {
   background: var(--bg-card); border-radius: 16px; padding: 20px;
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
 }
 .coverage-label { color: var(--text-dim); font-size: 14px; }
-.coverage-score {
-  font-size: 42px; font-weight: 700; color: var(--accent);
-  display: flex; align-items: baseline; gap: 4px;
+
+/* とくいど gauge — a ring so the score can sit in the middle. The arc is drawn
+   by dashing the circle: dasharray is the full circumference and JS sets
+   dashoffset to the unfilled remainder. */
+.coverage-ring { position: relative; width: 156px; height: 156px; }
+.ring-svg {
+  width: 100%; height: 100%; display: block;
+  transform: rotate(-90deg);            /* start the arc at 12 o'clock */
 }
-.coverage-max { font-size: 18px; color: var(--text-dim); font-weight: 400; }
-.coverage-bar {
-  height: 10px; background: var(--bg-card-2); border-radius: 5px; overflow: hidden;
+.ring-track { fill: none; stroke: var(--bg-card-2); stroke-width: 13; }
+.ring-fill {
+  fill: none; stroke-width: 13; stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease;
 }
-.coverage-fill {
-  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  width: 0%; transition: width 0.6s ease;
+/* var() does not resolve inside SVG presentation attributes, so the gradient
+   stops take their colours from CSS instead. */
+.ring-grad-a { stop-color: var(--accent); }
+.ring-grad-b { stop-color: var(--accent-2); }
+.ring-center {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
 }
+.ring-score {
+  font-size: 40px; font-weight: 700; color: var(--accent);
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.ring-max { font-size: 14px; color: var(--text-dim); }
 .tier-info { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
 
 .today-block {
@@ -188,7 +204,7 @@ button { font-family: inherit; cursor: pointer; border: none; }
 .result-inner h2 { text-align: center; font-size: 28px; }
 .result-coverage {
   background: var(--bg-card); border-radius: 16px; padding: 24px;
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; flex-direction: column; gap: 10px; align-items: center;
 }
 .coverage-delta { color: var(--good); font-size: 18px; font-weight: 700; min-height: 24px; }
 .coverage-delta.zero { color: var(--text-dim); }
@@ -241,6 +257,8 @@ button { font-family: inherit; cursor: pointer; border: none; }
   .keypad { width: 100%; max-width: 400px; margin: 16px auto 0; }
 }
 @media (max-height: 640px) {
+  .coverage-ring { width: 124px; height: 124px; }
+  .ring-score { font-size: 32px; }
   .card-equation { font-size: 36px; }
   .highlight-r, .highlight-d { font-size: 26px; }
   .card-prompt { font-size: 18px; }

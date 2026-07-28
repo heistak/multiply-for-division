@@ -20,8 +20,23 @@
       <h1>わり算のための<br>かけ算れんしゅう</h1>
       <div class="coverage-block">
         <div class="coverage-label">とくいど</div>
-        <div class="coverage-score"><span id="coverage-number">0</span><span class="coverage-max">/1000</span></div>
-        <div class="coverage-bar"><div id="coverage-fill" class="coverage-fill"></div></div>
+        <div class="coverage-ring">
+          <svg viewBox="0 0 120 120" class="ring-svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="ringGradHome" x1="0" y1="0" x2="1" y2="1">
+                <stop class="ring-grad-a" offset="0%"/>
+                <stop class="ring-grad-b" offset="100%"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-track" cx="60" cy="60" r="52"/>
+            <circle class="ring-fill" id="coverage-fill" cx="60" cy="60" r="52"
+                    stroke="url(#ringGradHome)"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-score" id="coverage-number">0</span>
+            <span class="ring-max">/1000</span>
+          </div>
+        </div>
         <div class="tier-info" id="tier-info">レベル 1 ： ÷2〜÷5</div>
       </div>
       <div class="today-block">
@@ -98,11 +113,24 @@
       <h2 id="result-title">おつかれさま！</h2>
       <div class="result-coverage">
         <div class="coverage-label">とくいど</div>
-        <div class="coverage-score">
-          <span id="result-coverage">0</span><span class="coverage-max">/1000</span>
+        <div class="coverage-ring">
+          <svg viewBox="0 0 120 120" class="ring-svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="ringGradResult" x1="0" y1="0" x2="1" y2="1">
+                <stop class="ring-grad-a" offset="0%"/>
+                <stop class="ring-grad-b" offset="100%"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-track" cx="60" cy="60" r="52"/>
+            <circle class="ring-fill" id="result-fill" cx="60" cy="60" r="52"
+                    stroke="url(#ringGradResult)"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-score" id="result-coverage">0</span>
+            <span class="ring-max">/1000</span>
+          </div>
         </div>
         <div class="coverage-delta" id="result-delta"></div>
-        <div class="coverage-bar"><div id="result-fill" class="coverage-fill"></div></div>
       </div>
       <div class="result-note" id="result-note"></div>
       <div class="today-block">

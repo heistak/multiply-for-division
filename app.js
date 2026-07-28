@@ -272,10 +272,18 @@ function show(name) {
 }
 
 // ---------- Home ----------
+// Radius must match the <circle r> in index.html.
+const RING_CIRCUMFERENCE = 2 * Math.PI * 52;
+function setRing(el, score) {
+  const pct = Math.max(0, Math.min(1, score / 1000));
+  el.style.strokeDasharray = RING_CIRCUMFERENCE;
+  el.style.strokeDashoffset = RING_CIRCUMFERENCE * (1 - pct);
+}
+
 function renderHome() {
   const score = coverageScore();
   document.getElementById('coverage-number').textContent = score;
-  document.getElementById('coverage-fill').style.width = `${score / 10}%`;
+  setRing(document.getElementById('coverage-fill'), score);
   document.getElementById('tier-info').textContent =
     `レベル ${state.tier} ： ${TIERS[state.tier - 1].label}`;
   const today = sessionsToday();
@@ -632,7 +640,7 @@ function updateStreak() {
 function renderResult(coverageAfter, tierUnlocked) {
   const delta = coverageAfter - coverageBefore;
   document.getElementById('result-coverage').textContent = coverageAfter;
-  document.getElementById('result-fill').style.width = `${coverageAfter / 10}%`;
+  setRing(document.getElementById('result-fill'), coverageAfter);
   const deltaEl = document.getElementById('result-delta');
   if (delta > 0) { deltaEl.textContent = `+${delta} アップ！`; deltaEl.className = 'coverage-delta'; }
   else if (delta < 0) { deltaEl.textContent = `${delta}`; deltaEl.className = 'coverage-delta zero'; }
