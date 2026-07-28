@@ -35,6 +35,19 @@ function makeCardsFor(divisors) {
 const ALL_CARDS = makeCardsFor(TIERS[TIERS.length - 1].divisors);
 const CARD_BY_ID = Object.fromEntries(ALL_CARDS.map(c => [c.id, c]));
 
+// ---------- Debug tier preview ----------
+//   ?tier=N          play as if unlocked through tier N
+//   ?tier=N&solo=1   show only the divisors that tier N adds
+// While either is active nothing is written to storage and no tier can unlock,
+// so previewing a tier can never disturb real progress.
+const DEBUG = (() => {
+  const q = new URLSearchParams(location.search);
+  const t = parseInt(q.get('tier') || '', 10);
+  if (!(t >= 1 && t <= TIERS.length)) return null;
+  return { tier: t, solo: q.get('solo') === '1' };
+})();
+const activeTier = () => (DEBUG ? DEBUG.tier : state.tier);
+
 // ---------- State ----------
 const STORAGE_KEY = 'wari-v1';
 const DEFAULT_STATE = {
@@ -66,7 +79,10 @@ function loadState() {
     return structuredClone(DEFAULT_STATE);
   }
 }
-function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function saveState() {
+  if (DEBUG) return;                    // previewing a tier must not write anything
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
 function todayISO() {
   const d = new Date();
@@ -93,7 +109,12 @@ function cardMastery(id) {
 // The score's max never changes; unlocking a tier just adds room to grow.
 // Finishing tier 1 therefore reads ~318, and finishing tier 2 reads 1000.
 function currentDeck() {
-  const divisors = TIERS[state.tier - 1].divisors;
+  const t = activeTier();
+  const divisors = TIERS[t - 1].divisors;
+  if (DEBUG && DEBUG.solo && t > 1) {
+    const prev = TIERS[t - 2].divisors;
+    return ALL_CARDS.filter(c => divisors.includes(c.d) && !prev.includes(c.d));
+  }
   return ALL_CARDS.filter(c => divisors.includes(c.d));
 }
 function coverageScore() {
@@ -112,6 +133,7 @@ function currentTierMastery() {
 // Should we unlock the next tier?
 // Rule: current-tier mastery >= 0.85 AND every card in current tier has everCorrect
 function checkTierUnlock() {
+  if (DEBUG) return false;              // no unlocking while previewing
   if (state.tier >= TIERS.length) return false;
   if (currentTierMastery() < 0.85) return false;
   const deck = currentDeck();
@@ -285,7 +307,7 @@ function renderHome() {
   document.getElementById('coverage-number').textContent = score;
   setRing(document.getElementById('coverage-fill'), score);
   document.getElementById('tier-info').textContent =
-    `レベル ${state.tier} ： ${TIERS[state.tier - 1].label}`;
+    `レベル ${activeTier()} ： ${TIERS[activeTier() - 1].label}`;
   const today = sessionsToday();
   document.getElementById('dot-1').classList.toggle('done', today.some(s => s.slot === 1));
   document.getElementById('dot-2').classList.toggle('done', today.some(s => s.slot === 2));
@@ -303,9 +325,10 @@ function renderSettings() {
   const deck = currentDeck();
   const covered = deck.filter(c => state.progress[c.id]?.everCorrect).length;
   const tierPct = Math.round(currentTierMastery() * 100);
-  const nextTier = state.tier < TIERS.length ? TIERS[state.tier].label : null;
+  const dt = activeTier();
+  const nextTier = dt < TIERS.length ? TIERS[dt].label : null;
   const rows = [
-    `<div class="ls-line ls-main">いま レベル ${state.tier} （${TIERS[state.tier - 1].label}）</div>`,
+    `<div class="ls-line ls-main">いま レベル ${dt} （${TIERS[dt - 1].label}）</div>`,
     `<div class="ls-line">このレベルの もんだい： <b>${covered} / ${deck.length}</b> こたえたことあり</div>`,
     `<div class="ls-line">このレベルの できぐあい： <b>${tierPct}%</b></div>`,
     nextTier
@@ -651,7 +674,7 @@ function renderResult(coverageAfter, tierUnlocked) {
     note = `🎉 レベル ${state.tier} かいほう！ ${TIERS[state.tier - 1].label} に ちょうせん！`;
   } else if (coverageAfter >= 1000) {
     note = 'マスター！ すごい！';
-  } else if (state.tier < TIERS.length && currentTierMastery() >= 0.7) {
+  } else if (activeTier() < TIERS.length && currentTierMastery() >= 0.7) {
     // Gauge this on the current tier, not the overall score: unlocking uses
     // tier mastery, and the overall score can't even reach 850 during tier 1.
     note = 'もうすこしで レベルアップ！';
@@ -668,6 +691,15 @@ function renderResult(coverageAfter, tierUnlocked) {
 document.getElementById('btn-home').addEventListener('click', () => { renderHome(); show('home'); });
 
 // ---------- Init ----------
+// Make debug mode impossible to miss — otherwise a preview session looks like
+// real practice that mysteriously never records.
+if (DEBUG) {
+  const b = document.createElement('div');
+  b.className = 'debug-badge';
+  b.textContent = `デバッグ：レベル${DEBUG.tier}${DEBUG.solo ? ' だけ' : ' まで'}・きろくしません`;
+  document.body.appendChild(b);
+}
+
 renderHome();
 show('home');
 
